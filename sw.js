@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gallinas-kamikaze-v3';
+const CACHE_NAME = 'gallinas-kamikaze-v4';
 const urlsToCache = [
   '/',
   '/index.html',

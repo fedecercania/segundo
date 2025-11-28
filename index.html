@@ -14,6 +14,12 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     
+    <!-- Audio para música de fondo -->
+    <audio id="backgroundMusic" loop preload="auto" volume="0.5">
+        <source src="https://cdn.pixabay.com/download/audio/2022/08/18/audio_c89f37b0e9.mp3?filename=happy-ukulele-background-music-132459.mp3" type="audio/mpeg">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+    
     <div id="startScreen" class="screen">
         <h1>¡Esquiva las Gallinas Kamikaze!</h1>
         <button id="startButton">Comenzar</button>
@@ -25,7 +31,10 @@
         <button id="restartButton">Jugar de Nuevo</button>
     </div>
     
-    <div id="scoreDisplay" class="hidden">Puntuación: <span id="score">0</span></div>
+    <div id="scoreDisplay" class="hidden">
+        <div>Puntuación: <span id="score">0</span></div>
+        <div>Vida: <span id="health">100</span></div>
+    </div>
     
     <!-- Controles táctiles para móvil -->
     <div id="touchControls" class="touch-controls hidden">
