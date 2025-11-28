@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esquiva Gallinas Kamikaze</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="startScreen" class="screen">
+        <h1>¡Esquiva las Gallinas Kamikaze!</h1>
+        <p>Usa las flechas ← → o A/D para moverte</p>
+        <button id="startButton">Comenzar</button>
+    </div>
+    
+    <div id="gameOverScreen" class="screen hidden">
+        <h1>Game Over</h1>
+        <p>Puntuación: <span id="finalScore">0</span></p>
+        <button id="restartButton">Jugar de Nuevo</button>
+    </div>
+    
+    <div id="scoreDisplay" class="hidden">Puntuación: <span id="score">0</span></div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
+
