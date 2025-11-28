@@ -7,14 +7,12 @@ const restartButton = document.getElementById('restartButton');
 const scoreDisplay = document.getElementById('scoreDisplay');
 const scoreElement = document.getElementById('score');
 const finalScoreElement = document.getElementById('finalScore');
+const touchControls = document.getElementById('touchControls');
+const leftButton = document.getElementById('leftButton');
+const rightButton = document.getElementById('rightButton');
 
-// Configurar canvas a pantalla completa
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+// Detectar si es móvil
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
 
 // Variables del juego
 let gameState = 'start'; // 'start', 'playing', 'gameover'
@@ -23,13 +21,32 @@ let gameSpeed = 2;
 
 // Personaje
 const player = {
-    x: canvas.width / 2,
-    y: canvas.height - 100,
-    width: 60,
-    height: 60,
-    speed: 8,
+    x: 0,
+    y: 0,
+    width: isMobile ? 50 : 60,
+    height: isMobile ? 50 : 60,
+    speed: isMobile ? 10 : 8,
     color: '#FF6B6B'
 };
+
+// Ajustar posición del personaje en móvil
+function updatePlayerPosition() {
+    if (isMobile) {
+        player.y = canvas.height - 150;
+    } else {
+        player.y = canvas.height - 100;
+    }
+}
+
+// Configurar canvas a pantalla completa
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    updatePlayerPosition();
+    player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x || canvas.width / 2));
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Gallinas
 const chickens = [];
@@ -38,6 +55,8 @@ const chickenSpeed = 3;
 
 // Controles
 const keys = {};
+let touchLeft = false;
+let touchRight = false;
 
 document.addEventListener('keydown', (e) => {
     keys[e.key] = true;
@@ -46,6 +65,62 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
 });
+
+// Prevenir scroll en móvil
+document.addEventListener('touchmove', (e) => {
+    if (gameState === 'playing') {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('touchstart', (e) => {
+    if (gameState === 'playing') {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// Controles táctiles
+if (leftButton && rightButton) {
+    leftButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        touchLeft = true;
+    });
+    
+    leftButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        touchLeft = false;
+    });
+    
+    leftButton.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        touchLeft = true;
+    });
+    
+    leftButton.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        touchLeft = false;
+    });
+    
+    rightButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        touchRight = true;
+    });
+    
+    rightButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        touchRight = false;
+    });
+    
+    rightButton.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        touchRight = true;
+    });
+    
+    rightButton.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        touchRight = false;
+    });
+}
 
 // Dibujar personaje
 function drawPlayer() {
@@ -112,11 +187,12 @@ function drawChicken(chicken) {
 // Crear nueva gallina
 function spawnChicken() {
     if (Math.random() < chickenSpawnRate) {
+        const size = isMobile ? 35 : 40;
         chickens.push({
-            x: Math.random() * (canvas.width - 40) + 20,
-            y: -40,
-            width: 40,
-            height: 40,
+            x: Math.random() * (canvas.width - size) + size / 2,
+            y: -size,
+            width: size,
+            height: size,
             speed: chickenSpeed + Math.random() * 2
         });
     }
@@ -124,10 +200,10 @@ function spawnChicken() {
 
 // Actualizar posición del personaje
 function updatePlayer() {
-    if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+    if (keys['ArrowLeft'] || keys['a'] || keys['A'] || touchLeft) {
         player.x -= player.speed;
     }
-    if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+    if (keys['ArrowRight'] || keys['d'] || keys['D'] || touchRight) {
         player.x += player.speed;
     }
     
@@ -180,6 +256,11 @@ function gameLoop() {
             finalScoreElement.textContent = score;
             gameOverScreen.classList.remove('hidden');
             scoreDisplay.classList.add('hidden');
+            if (isMobile) {
+                touchControls.classList.add('hidden');
+            }
+            touchLeft = false;
+            touchRight = false;
             return;
         }
         
@@ -199,6 +280,9 @@ startButton.addEventListener('click', () => {
     gameState = 'playing';
     startScreen.classList.add('hidden');
     scoreDisplay.classList.remove('hidden');
+    if (isMobile) {
+        touchControls.classList.remove('hidden');
+    }
     score = 0;
     scoreElement.textContent = score;
     gameSpeed = 2;
@@ -212,11 +296,16 @@ restartButton.addEventListener('click', () => {
     gameState = 'playing';
     gameOverScreen.classList.add('hidden');
     scoreDisplay.classList.remove('hidden');
+    if (isMobile) {
+        touchControls.classList.remove('hidden');
+    }
     score = 0;
     scoreElement.textContent = score;
     gameSpeed = 2;
     player.x = canvas.width / 2;
     chickens.length = 0;
+    touchLeft = false;
+    touchRight = false;
     gameLoop();
 });
 

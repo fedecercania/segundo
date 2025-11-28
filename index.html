@@ -2,8 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="description" content="Esquiva las gallinas kamikaze que caen del cielo">
     <title>Esquiva Gallinas Kamikaze</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +16,8 @@
     
     <div id="startScreen" class="screen">
         <h1>¡Esquiva las Gallinas Kamikaze!</h1>
-        <p>Usa las flechas ← → o A/D para moverte</p>
+        <p class="desktop-instructions">Usa las flechas ← → o A/D para moverte</p>
+        <p class="mobile-instructions">Toca los botones ← → para moverte</p>
         <button id="startButton">Comenzar</button>
     </div>
     
@@ -23,7 +29,23 @@
     
     <div id="scoreDisplay" class="hidden">Puntuación: <span id="score">0</span></div>
     
+    <!-- Controles táctiles para móvil -->
+    <div id="touchControls" class="touch-controls hidden">
+        <button id="leftButton" class="control-button">←</button>
+        <button id="rightButton" class="control-button">→</button>
+    </div>
+    
     <script src="game.js"></script>
+    <script>
+        // Registrar service worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registrado'))
+                    .catch(error => console.log('Error SW:', error));
+            });
+        }
+    </script>
 </body>
 </html>
 

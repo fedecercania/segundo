@@ -8,6 +8,10 @@ body {
     overflow: hidden;
     background: #1a1a2e;
     font-family: 'Arial', sans-serif;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 #gameCanvas {
@@ -83,5 +87,123 @@ body {
 
 #scoreDisplay.hidden {
     display: none;
+}
+
+/* Controles táctiles */
+.touch-controls {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 30px;
+    z-index: 100;
+}
+
+.touch-controls.hidden {
+    display: none;
+}
+
+.control-button {
+    width: 80px;
+    height: 80px;
+    font-size: 2.5rem;
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: all 0.1s;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.control-button:active {
+    background: rgba(255, 255, 255, 0.5);
+    transform: scale(0.9);
+}
+
+/* Instrucciones responsive */
+.desktop-instructions {
+    display: block;
+}
+
+.mobile-instructions {
+    display: none;
+}
+
+/* Media queries para móvil */
+@media (max-width: 768px) {
+    .screen h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .screen p {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 0 20px;
+    }
+    
+    .screen button {
+        padding: 12px 30px;
+        font-size: 1.2rem;
+    }
+    
+    #scoreDisplay {
+        font-size: 1.5rem;
+        top: 10px;
+        left: 10px;
+    }
+    
+    .control-button {
+        width: 70px;
+        height: 70px;
+        font-size: 2rem;
+    }
+    
+    .touch-controls {
+        gap: 25px;
+        bottom: 20px;
+    }
+    
+    .desktop-instructions {
+        display: none;
+    }
+    
+    .mobile-instructions {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .screen h1 {
+        font-size: 1.5rem;
+    }
+    
+    .screen p {
+        font-size: 0.9rem;
+    }
+    
+    .screen button {
+        padding: 10px 25px;
+        font-size: 1rem;
+    }
+    
+    #scoreDisplay {
+        font-size: 1.2rem;
+    }
+    
+    .control-button {
+        width: 60px;
+        height: 60px;
+        font-size: 1.8rem;
+    }
+    
+    .touch-controls {
+        gap: 20px;
+    }
 }
 
