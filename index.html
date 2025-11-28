@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="description" content="Esquiva las gallinas kamikaze que caen del cielo">
     <title>Esquiva Gallinas Kamikaze</title>
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -69,7 +69,7 @@
         // Registrar service worker para PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
+                navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('SW registrado:', registration);
                     })

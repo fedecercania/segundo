@@ -1,12 +1,12 @@
-const CACHE_NAME = 'gallinas-kamikaze-v2';
+const CACHE_NAME = 'gallinas-kamikaze-v3';
 const urlsToCache = [
-  './',
-  './index.html',
-  './style.css',
-  './game.js',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  '/',
+  '/index.html',
+  '/style.css',
+  '/game.js',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,9 +28,10 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      return self.clients.claim();
     })
   );
-  return self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -41,7 +42,7 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() => {
         if (event.request.destination === 'document') {
-          return caches.match('./index.html');
+          return caches.match('/index.html');
         }
       })
   );
