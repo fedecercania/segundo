@@ -16,9 +16,6 @@
     
     <div id="startScreen" class="screen">
         <h1>¡Esquiva las Gallinas Kamikaze!</h1>
-        <p class="desktop-instructions">Usa las flechas ← → o A/D para moverte</p>
-        <p class="mobile-instructions">Toca los botones ← → para moverte</p>
-        <button id="installButton" class="install-button hidden">📱 Instalar App</button>
         <button id="startButton">Comenzar</button>
     </div>
     
@@ -38,34 +35,6 @@
     
     <script src="game.js"></script>
     <script>
-        let deferredPrompt;
-        const installButton = document.getElementById('installButton');
-        
-        // Manejar evento de instalación PWA
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installButton.classList.remove('hidden');
-        });
-        
-        // Instalar PWA
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response: ${outcome}`);
-                deferredPrompt = null;
-                installButton.classList.add('hidden');
-            }
-        });
-        
-        // Ocultar botón si ya está instalado
-        window.addEventListener('appinstalled', () => {
-            console.log('PWA instalada');
-            installButton.classList.add('hidden');
-            deferredPrompt = null;
-        });
-        
         // Registrar service worker para PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
