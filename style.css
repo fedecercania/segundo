@@ -74,6 +74,15 @@ body {
     transform: scale(0.95);
 }
 
+.install-button {
+    background: #2196F3 !important;
+    margin-bottom: 15px;
+}
+
+.install-button:hover {
+    background: #1976D2 !important;
+}
+
 #scoreDisplay {
     position: fixed;
     top: 20px;
