@@ -34,6 +34,7 @@ body {
     align-items: center;
     color: white;
     z-index: 1000;
+    overflow: auto; /* Permitir scroll si es necesario */
 }
 
 #levelUpScreen {
@@ -101,13 +102,12 @@ body {
 }
 
 .game-logo {
-    max-width: 200px;
-    max-height: 200px;
-    width: auto;
+    width: 200px;
     height: auto;
     object-fit: contain; /* Mantener proporción completa sin cortar */
     margin-bottom: 20px;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+    display: block;
 }
 
 .screen h1 {
@@ -245,10 +245,11 @@ body {
 /* Media queries para móvil */
 @media (max-width: 768px) {
     .game-logo {
-        max-width: 150px;
-        max-height: 150px;
+        width: 150px;
+        height: auto;
         object-fit: contain; /* Mantener proporción completa sin cortar */
         margin-bottom: 15px;
+        display: block;
     }
     
     .screen h1 {
