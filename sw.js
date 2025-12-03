@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gallinas-kamikaze-v5';
+const CACHE_NAME = 'gallinas-kamikaze-v6';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,7 +6,8 @@ const urlsToCache = [
   '/game.js',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/Gallina.png'
 ];
 
 self.addEventListener('install', (event) => {
