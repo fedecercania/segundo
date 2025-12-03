@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gallinas-kamikaze-v4';
+const CACHE_NAME = 'gallinas-kamikaze-v5';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -35,15 +35,29 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Estrategia: Network First - siempre intenta obtener de la red primero
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        return response || fetch(event.request);
+        // Si hay respuesta de la red, actualizar caché y devolver
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return response;
       })
       .catch(() => {
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
+        // Si falla la red, usar caché
+        return caches.match(event.request)
+          .then((response) => {
+            if (response) {
+              return response;
+            }
+            // Si no hay en caché y es un documento, devolver index.html
+            if (event.request.destination === 'document') {
+              return caches.match('/index.html');
+            }
+          });
       })
   );
 });
