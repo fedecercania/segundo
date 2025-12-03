@@ -1,13 +1,26 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const startScreen = document.getElementById('startScreen');
+const characterScreen = document.getElementById('characterScreen');
 const gameOverScreen = document.getElementById('gameOverScreen');
+const levelUpScreen = document.getElementById('levelUpScreen');
+const lifeLostScreen = document.getElementById('lifeLostScreen');
+const countdownText = document.getElementById('countdownText');
 const startButton = document.getElementById('startButton');
+const playButton = document.getElementById('playButton');
 const restartButton = document.getElementById('restartButton');
+const characterPreview = document.getElementById('characterPreview');
+const colorSelect = document.getElementById('colorSelect');
+const eyeColorSelect = document.getElementById('eyeColorSelect');
+const mouthSelect = document.getElementById('mouthSelect');
+const hatSelect = document.getElementById('hatSelect');
+const levelUpNumber = document.getElementById('levelUpNumber');
 const scoreDisplay = document.getElementById('scoreDisplay');
 const scoreElement = document.getElementById('score');
 const finalScoreElement = document.getElementById('finalScore');
-const healthElement = document.getElementById('health');
+const healthBar = document.getElementById('healthBar');
+const livesElement = document.getElementById('lives');
+const levelElement = document.getElementById('level');
 const touchControls = document.getElementById('touchControls');
 const leftButton = document.getElementById('leftButton');
 const rightButton = document.getElementById('rightButton');
@@ -16,12 +29,15 @@ const rightButton = document.getElementById('rightButton');
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
 
 // Variables del juego
-let gameState = 'start'; // 'start', 'playing', 'gameover'
+let gameState = 'start'; // 'start', 'playing', 'gameover', 'lifelost'
 let score = 0;
-let gameSpeed = 2;
-let playerHealth = 100;
+let gameSpeed = 0.3; // Velocidad inicial lenta
+let playerLives = 5; // 5 vidas
+let playerHealthBar = 0; // Barra de vida (0-100)
 let lastDamageTime = 0;
 const damageCooldown = 500; // ms entre daños
+let currentLevel = 1;
+let scoreForNextLevel = 100; // Puntos necesarios para subir de nivel
 
 // Sistema de sonidos
 let audioContext = null;
@@ -185,6 +201,12 @@ function playFireRoosterSound() {
     setTimeout(() => playSound(200, 0.2, 'square', 0.3), 100);
 }
 
+function playLifeLostSound() {
+    // Sonido "tutun" - dos tonos bajos
+    playSound(150, 0.3, 'sine', 0.4);
+    setTimeout(() => playSound(120, 0.3, 'sine', 0.4), 200);
+}
+
 // Personaje
 const player = {
     x: 0,
@@ -192,11 +214,23 @@ const player = {
     width: isMobile ? 50 : 60,
     height: isMobile ? 50 : 60,
     speed: isMobile ? 10 : 8,
-    color: '#FF6B6B'
+    color: '#FF6B6B',
+    eyeColor: '#000000',
+    mouthType: 'happy',
+    hatType: 'none'
 };
+
+// Período de adaptación al inicio de cada nivel
+let adaptationTime = 0;
+const adaptationDuration = 5000; // 5 segundos de adaptación
+let levelStartTime = 0;
 
 // Generar perfil de montañas (variable global)
 let mountainsProfile = null;
+
+// Variables de nubes (declaradas antes de resizeCanvas)
+let cloudY = 300; // Posición Y de la nube (se inicializará en resizeCanvas)
+let cloudHeight = 0; // Altura de la nube (40% del canvas, se ajustará dinámicamente)
 
 // Ajustar posición del personaje sobre el piso
 function updatePlayerPosition() {
@@ -211,35 +245,38 @@ function resizeCanvas() {
     updatePlayerPosition();
     player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x || canvas.width / 2));
     mountainsProfile = null; // Forzar regeneración de montañas
+    cloudHeight = canvas.height * 0.4; // 40% del alto de la pantalla
+    cloudY = canvas.height * 0.15; // Posición más alta (15% desde arriba)
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // Gallinas (quitan 1 de vida)
 const chickens = [];
-const chickenSpawnRate = 0.08;
-const chickenSpeed = 5; // Más velocidad
+let chickenSpawnRate = 0.006; // Frecuencia balanceada
+const chickenSpeed = 0.8; // Velocidad muy lenta
 
-// Gallos (quitan 5 de vida)
+// Gallos (quitan 5 de vida) - 1 cada 10 gallinas
 const roosters = [];
-const roosterSpawnRate = 0.03;
-const roosterSpeed = 6; // Más velocidad
+let roosterSpawnRate = 0.0006; // 10% de la frecuencia de gallinas (0.006 / 10)
+const roosterSpeed = 1; // Velocidad lenta
 
-// Gallos de fuego (quitan 10 de vida, caen constantemente)
+// Gallos de fuego (quitan 10 de vida) - 1 cada 20 gallinas, al doble de velocidad
 const fireRoosters = [];
-const fireRoosterSpawnRate = 0.015;
-const fireRoosterSpeed = 7; // Más velocidad
+let fireRoosterSpawnRate = 0.0003; // 5% de la frecuencia de gallinas (0.006 / 20)
+const fireRoosterSpeed = 2.4; // Doble velocidad (1.2 * 2)
 
 // Nubes
 const clouds = [];
-const cloudSpawnRate = 0.015;
-const cloudDuration = 3000; // Duración de 3 segundos
-const cloudMaxCount = 2; // Máximo 2 nubes a la vez
+const cloudSpawnRate = 0.0003; // Aparece aproximadamente cada 1 minuto
+const cloudDuration = 10000; // Duración de 10 segundos
+const cloudMaxCount = 1; // Máximo 1 nube a la vez
 
-// Comida en el piso
+// Comida flotante
 const foods = [];
-const foodSpawnRate = 0.003; // Menos comida
-const foodHealAmount = 20;
+const foodSpawnRate = 0.002; // Mucho menos comida
+const foodHealAmount = 2; // Muy poca vida
+const foodLifetime = 8000; // Desaparecen después de 8 segundos
 
 // Controles
 const keys = {};
@@ -403,24 +440,54 @@ function drawFloor() {
 
 // Dibujar nube
 function drawCloud(cloud) {
-    const elapsed = Date.now() - cloud.createdAt;
-    const remaining = Math.max(0, cloud.duration - elapsed);
-    const fadeProgress = remaining / cloud.duration;
-    const currentOpacity = cloud.opacity * fadeProgress;
+    const y = cloudY;
+    const height = cloudHeight;
+    const centerY = y + height / 2;
     
-    ctx.fillStyle = `rgba(150, 150, 150, ${currentOpacity})`;
-    ctx.globalAlpha = currentOpacity;
+    // Nube ocupa todo el ancho de la pantalla
+    const cloudWidth = canvas.width;
+    const cloudX = 0;
     
-    // Dibujar nube con forma más realista
-    ctx.beginPath();
-    ctx.arc(cloud.x, cloud.y, cloud.height / 2, 0, Math.PI * 2);
-    ctx.arc(cloud.x + cloud.width * 0.3, cloud.y, cloud.height * 0.6, 0, Math.PI * 2);
-    ctx.arc(cloud.x - cloud.width * 0.3, cloud.y, cloud.height * 0.6, 0, Math.PI * 2);
-    ctx.arc(cloud.x + cloud.width * 0.15, cloud.y - cloud.height * 0.3, cloud.height * 0.5, 0, Math.PI * 2);
-    ctx.arc(cloud.x - cloud.width * 0.15, cloud.y - cloud.height * 0.3, cloud.height * 0.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = 'rgba(220, 220, 220, 0.85)';
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.9)';
+    ctx.lineWidth = 2;
     
-    ctx.globalAlpha = 1.0;
+    // Dibujar forma de nube usando múltiples círculos superpuestos
+    const numCircles = 20; // Más círculos para nube más ancha
+    const spacing = cloudWidth / (numCircles - 1);
+    const baseRadius = height * 0.25;
+    
+    // Círculos de la fila principal (base de la nube)
+    for (let i = 0; i < numCircles; i++) {
+        const x = cloudX + i * spacing;
+        ctx.beginPath();
+        ctx.arc(x, centerY + height * 0.2, baseRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Círculos superiores (segunda fila, más pequeños)
+    for (let i = 1; i < numCircles - 1; i++) {
+        const x = cloudX + i * spacing;
+        ctx.beginPath();
+        ctx.arc(x, centerY - height * 0.05, baseRadius * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Círculos de la parte superior (tercera fila, aún más pequeños)
+    for (let i = 2; i < numCircles - 2; i++) {
+        const x = cloudX + i * spacing;
+        ctx.beginPath();
+        ctx.arc(x, centerY - height * 0.25, baseRadius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Agregar algunos círculos adicionales para suavizar
+    for (let i = 3; i < numCircles - 3; i++) {
+        const x = cloudX + i * spacing;
+        ctx.beginPath();
+        ctx.arc(x, centerY - height * 0.35, baseRadius * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 // Dibujar comida
@@ -507,23 +574,62 @@ function drawFireRooster(rooster) {
 
 // Dibujar personaje
 function drawPlayer() {
+    const centerX = player.x + player.width / 2;
+    const centerY = player.y + player.height / 2;
+    const radius = player.width / 2;
+    
+    // Sombrero (si tiene)
+    if (player.hatType === 'cap') {
+        // Gorra
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY - radius * 0.6, radius * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(centerX - radius * 0.8, centerY - radius * 1.2, radius * 1.6, radius * 0.4);
+    } else if (player.hatType === 'tophat') {
+        // Sombrero de copa
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(centerX - radius * 0.6, centerY - radius * 1.4, radius * 1.2, radius * 0.3);
+        ctx.fillRect(centerX - radius * 0.4, centerY - radius * 1.8, radius * 0.8, radius * 0.5);
+    }
+    
+    // Cuerpo
     ctx.fillStyle = player.color;
     ctx.beginPath();
-    ctx.arc(player.x + player.width / 2, player.y + player.height / 2, player.width / 2, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fill();
     
     // Ojos
     ctx.fillStyle = 'white';
     ctx.beginPath();
-    ctx.arc(player.x + player.width / 2 - 10, player.y + player.height / 2 - 5, 5, 0, Math.PI * 2);
-    ctx.arc(player.x + player.width / 2 + 10, player.y + player.height / 2 - 5, 5, 0, Math.PI * 2);
+    ctx.arc(centerX - radius * 0.25, centerY - radius * 0.15, radius * 0.15, 0, Math.PI * 2);
+    ctx.arc(centerX + radius * 0.25, centerY - radius * 0.15, radius * 0.15, 0, Math.PI * 2);
     ctx.fill();
     
-    ctx.fillStyle = 'black';
+    ctx.fillStyle = player.eyeColor;
     ctx.beginPath();
-    ctx.arc(player.x + player.width / 2 - 10, player.y + player.height / 2 - 5, 3, 0, Math.PI * 2);
-    ctx.arc(player.x + player.width / 2 + 10, player.y + player.height / 2 - 5, 3, 0, Math.PI * 2);
+    ctx.arc(centerX - radius * 0.25, centerY - radius * 0.15, radius * 0.1, 0, Math.PI * 2);
+    ctx.arc(centerX + radius * 0.25, centerY - radius * 0.15, radius * 0.1, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Boca
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (player.mouthType === 'happy') {
+        // Boca feliz
+        ctx.arc(centerX, centerY + radius * 0.1, radius * 0.3, 0.2, Math.PI - 0.2);
+    } else if (player.mouthType === 'surprised') {
+        // Boca sorprendida (círculo)
+        ctx.arc(centerX, centerY + radius * 0.2, radius * 0.15, 0, Math.PI * 2);
+        ctx.fillStyle = '#000000';
+        ctx.fill();
+    } else {
+        // Boca neutra (línea)
+        ctx.moveTo(centerX - radius * 0.3, centerY + radius * 0.15);
+        ctx.lineTo(centerX + radius * 0.3, centerY + radius * 0.15);
+    }
+    ctx.stroke();
 }
 
 // Dibujar gallina
@@ -614,11 +720,6 @@ function spawnFireRooster() {
 function spawnCloud() {
     if (Math.random() < cloudSpawnRate && clouds.length < cloudMaxCount) {
         clouds.push({
-            x: Math.random() * (canvas.width - 200) + 100,
-            y: 50 + Math.random() * (canvas.height / 2), // Aparece en la mitad superior
-            width: 150 + Math.random() * 100,
-            height: 80 + Math.random() * 60,
-            opacity: 0.6,
             createdAt: Date.now(),
             duration: cloudDuration
         });
@@ -628,13 +729,194 @@ function spawnCloud() {
 // Crear comida
 function spawnFood() {
     if (Math.random() < foodSpawnRate) {
+        // Comida más abajo para que sea más fácil de comer
         const floorY = canvas.height - 80;
         foods.push({
             x: Math.random() * (canvas.width - 30) + 15,
-            y: floorY + 20,
+            y: floorY - 30, // Más abajo, más cerca del piso
             size: 20,
-            collected: false
+            collected: false,
+            createdAt: Date.now()
         });
+    }
+}
+
+// Actualizar comida (desaparece después de un tiempo)
+function updateFoods() {
+    const now = Date.now();
+    for (let i = foods.length - 1; i >= 0; i--) {
+        const food = foods[i];
+        if (food.collected) {
+            foods.splice(i, 1);
+            continue;
+        }
+        
+        // Eliminar comida que ha pasado su tiempo de vida
+        if (now - food.createdAt > foodLifetime) {
+            foods.splice(i, 1);
+        }
+    }
+}
+
+// Función para actualizar barra de vida
+function updateHealthBar() {
+    if (healthBar) {
+        const percentage = Math.max(0, Math.min(100, playerHealthBar));
+        healthBar.style.width = percentage + '%';
+        
+        // Color verde para la barra
+        healthBar.style.background = 'linear-gradient(to right, #4CAF50, #8BC34A)';
+    }
+    if (livesElement) {
+        // Mostrar vidas como corazones
+        livesElement.innerHTML = '❤️'.repeat(playerLives) + '🤍'.repeat(Math.max(0, 5 - playerLives));
+    }
+}
+
+// Reiniciar nivel después de perder una vida
+function resetLevelAfterLifeLost() {
+    // Pausar el juego
+    gameState = 'lifelost';
+    
+    // Limpiar todos los enemigos
+    chickens.length = 0;
+    roosters.length = 0;
+    fireRoosters.length = 0;
+    foods.length = 0;
+    clouds.length = 0;
+    
+    // Reposicionar al jugador en el centro
+    player.x = canvas.width / 2;
+    updatePlayerPosition();
+    
+    // Mostrar pantalla de vida perdida y cuenta regresiva
+    if (lifeLostScreen) {
+        lifeLostScreen.classList.remove('hidden');
+        scoreDisplay.classList.add('hidden');
+        if (isMobile) {
+            touchControls.classList.add('hidden');
+        }
+        
+        // Cuenta regresiva 3-2-1
+        let countdown = 3;
+        if (countdownText) {
+            countdownText.textContent = countdown;
+        }
+        
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdownText) {
+                countdownText.textContent = countdown;
+            }
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                // Ocultar pantalla y continuar
+                lifeLostScreen.classList.add('hidden');
+                scoreDisplay.classList.remove('hidden');
+                if (isMobile) {
+                    touchControls.classList.remove('hidden');
+                }
+                gameState = 'playing';
+            }
+        }, 1000);
+    }
+}
+
+// Dibujar preview del personaje
+function drawCharacterPreview() {
+    if (!characterPreview) return;
+    const previewCtx = characterPreview.getContext('2d');
+    previewCtx.clearRect(0, 0, characterPreview.width, characterPreview.height);
+    
+    const centerX = characterPreview.width / 2;
+    const centerY = characterPreview.height / 2;
+    const radius = 50;
+    
+    // Obtener valores actuales de los selects
+    const color = colorSelect ? colorSelect.value : player.color;
+    const eyeColor = eyeColorSelect ? eyeColorSelect.value : player.eyeColor;
+    const mouthType = mouthSelect ? mouthSelect.value : player.mouthType;
+    const hatType = hatSelect ? hatSelect.value : player.hatType;
+    
+    // Sombrero (si tiene)
+    if (hatType === 'cap') {
+        previewCtx.fillStyle = '#1a1a2e';
+        previewCtx.beginPath();
+        previewCtx.arc(centerX, centerY - radius * 0.6, radius * 0.8, 0, Math.PI * 2);
+        previewCtx.fill();
+        previewCtx.fillRect(centerX - radius * 0.8, centerY - radius * 1.2, radius * 1.6, radius * 0.4);
+    } else if (hatType === 'tophat') {
+        previewCtx.fillStyle = '#1a1a2e';
+        previewCtx.fillRect(centerX - radius * 0.6, centerY - radius * 1.4, radius * 1.2, radius * 0.3);
+        previewCtx.fillRect(centerX - radius * 0.4, centerY - radius * 1.8, radius * 0.8, radius * 0.5);
+    }
+    
+    // Cuerpo
+    previewCtx.fillStyle = color;
+    previewCtx.beginPath();
+    previewCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    // Ojos
+    previewCtx.fillStyle = 'white';
+    previewCtx.beginPath();
+    previewCtx.arc(centerX - radius * 0.25, centerY - radius * 0.15, radius * 0.15, 0, Math.PI * 2);
+    previewCtx.arc(centerX + radius * 0.25, centerY - radius * 0.15, radius * 0.15, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    previewCtx.fillStyle = eyeColor;
+    previewCtx.beginPath();
+    previewCtx.arc(centerX - radius * 0.25, centerY - radius * 0.15, radius * 0.1, 0, Math.PI * 2);
+    previewCtx.arc(centerX + radius * 0.25, centerY - radius * 0.15, radius * 0.1, 0, Math.PI * 2);
+    previewCtx.fill();
+    
+    // Boca
+    previewCtx.strokeStyle = '#000000';
+    previewCtx.lineWidth = 2;
+    previewCtx.beginPath();
+    if (mouthType === 'happy') {
+        previewCtx.arc(centerX, centerY + radius * 0.1, radius * 0.3, 0.2, Math.PI - 0.2);
+    } else if (mouthType === 'surprised') {
+        previewCtx.arc(centerX, centerY + radius * 0.2, radius * 0.15, 0, Math.PI * 2);
+        previewCtx.fillStyle = '#000000';
+        previewCtx.fill();
+    } else {
+        previewCtx.moveTo(centerX - radius * 0.3, centerY + radius * 0.15);
+        previewCtx.lineTo(centerX + radius * 0.3, centerY + radius * 0.15);
+    }
+    previewCtx.stroke();
+}
+
+// Sistema de niveles
+let levelUpShown = false;
+function checkLevelUp() {
+    if (score >= scoreForNextLevel && !levelUpShown) {
+        currentLevel++;
+        scoreForNextLevel += 100 * currentLevel; // Cada nivel requiere más puntos
+        
+        // Aumentar velocidad solo 10% por nivel
+        gameSpeed *= 1.1; // Aumento del 10%
+        chickenSpawnRate *= 1.1; // Aumento del 10% de spawn
+        roosterSpawnRate *= 1.1;
+        fireRoosterSpawnRate *= 1.1;
+        
+        if (levelElement) {
+            levelElement.textContent = currentLevel;
+        }
+        
+        // Mostrar cartel de nivel
+        if (levelUpScreen && levelUpNumber) {
+            levelUpNumber.textContent = currentLevel;
+            levelUpScreen.classList.remove('hidden');
+            levelUpShown = true;
+            
+            // Ocultar después de 2 segundos
+            setTimeout(() => {
+                levelUpScreen.classList.add('hidden');
+                levelUpShown = false;
+            }, 2000);
+        }
     }
 }
 
@@ -651,18 +933,38 @@ function updatePlayer() {
     player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
 }
 
+// Factor de adaptación desactivado - velocidad constante
+function getAdaptationFactor() {
+    return 1.0; // Velocidad normal siempre
+}
+
 // Actualizar gallinas
 function updateChickens() {
     const floorY = canvas.height - 80;
+    const adaptationFactor = getAdaptationFactor();
+    
     for (let i = chickens.length - 1; i >= 0; i--) {
-        chickens[i].y += chickens[i].speed + gameSpeed;
+        const chicken = chickens[i];
+        
+        // Movimiento con factor de adaptación
+        chicken.y += (chicken.speed + gameSpeed) * adaptationFactor;
+        
+        // Si hay nube activa y la gallina está en la zona de la nube, ocultarla visualmente
+        if (cloudActive && clouds.length > 0) {
+            if (chicken.y >= cloudY && chicken.y <= cloudY + cloudHeight) {
+                chicken.hidden = true;
+            } else {
+                chicken.hidden = false;
+            }
+        } else {
+            chicken.hidden = false;
+        }
         
         // Eliminar gallinas cuando llegan al piso o salen de la pantalla
-        if (chickens[i].y >= floorY || chickens[i].y > canvas.height + 50) {
-            if (chickens[i].y < canvas.height && chickens[i].y >= floorY) {
+        if (chicken.y >= floorY || chicken.y > canvas.height + 50) {
+            if (chicken.y < canvas.height && chicken.y >= floorY) {
                 score += 10;
                 scoreElement.textContent = score;
-                // Sin sonido cuando llegan al suelo
             }
             chickens.splice(i, 1);
         }
@@ -672,15 +974,30 @@ function updateChickens() {
 // Actualizar gallos
 function updateRoosters() {
     const floorY = canvas.height - 80;
+    const adaptationFactor = getAdaptationFactor();
+    
     for (let i = roosters.length - 1; i >= 0; i--) {
-        roosters[i].y += roosters[i].speed + gameSpeed;
+        const rooster = roosters[i];
+        
+        // Movimiento con factor de adaptación
+        rooster.y += (rooster.speed + gameSpeed) * adaptationFactor;
+        
+        // Si hay nube activa y el gallo está en la zona de la nube, ocultarlo visualmente
+        if (cloudActive && clouds.length > 0) {
+            if (rooster.y >= cloudY && rooster.y <= cloudY + cloudHeight) {
+                rooster.hidden = true;
+            } else {
+                rooster.hidden = false;
+            }
+        } else {
+            rooster.hidden = false;
+        }
         
         // Eliminar gallos cuando llegan al piso o salen de la pantalla
-        if (roosters[i].y >= floorY || roosters[i].y > canvas.height + 50) {
-            if (roosters[i].y < canvas.height && roosters[i].y >= floorY) {
+        if (rooster.y >= floorY || rooster.y > canvas.height + 50) {
+            if (rooster.y < canvas.height && rooster.y >= floorY) {
                 score += 20;
                 scoreElement.textContent = score;
-                // Sin sonido cuando llegan al suelo
             }
             roosters.splice(i, 1);
         }
@@ -690,11 +1007,13 @@ function updateRoosters() {
 // Actualizar gallos de fuego (persiguen al personaje horizontalmente)
 function updateFireRoosters() {
     const floorY = canvas.height - 80;
+    const adaptationFactor = getAdaptationFactor();
+    
     for (let i = fireRoosters.length - 1; i >= 0; i--) {
         const fireRooster = fireRoosters[i];
         
-        // Caer hacia abajo
-        fireRooster.y += fireRooster.speed + gameSpeed;
+        // Caer hacia abajo con factor de adaptación
+        fireRooster.y += (fireRooster.speed + gameSpeed) * adaptationFactor;
         
         // Perseguir al personaje horizontalmente
         const playerCenterX = player.x + player.width / 2;
@@ -721,7 +1040,10 @@ function updateFireRoosters() {
 }
 
 // Actualizar nubes
+let cloudActive = false;
 function updateClouds() {
+    cloudActive = clouds.length > 0;
+    
     for (let i = clouds.length - 1; i >= 0; i--) {
         const cloud = clouds[i];
         const elapsed = Date.now() - cloud.createdAt;
@@ -737,56 +1059,73 @@ function updateClouds() {
 function checkCollisions() {
     const now = Date.now();
     
-    // Colisión con gallinas (quitan 1 de vida)
+    // Colisión con cualquier enemigo (quitan 1 vida)
+    let hitEnemy = false;
+    
+    // Colisión con gallinas
     for (let chicken of chickens) {
         const dx = player.x + player.width / 2 - chicken.x;
         const dy = player.y + player.height / 2 - chicken.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < (player.width / 2 + chicken.width / 2) && now - lastDamageTime > damageCooldown) {
-            playerHealth -= 1;
+            playerLives -= 1;
             lastDamageTime = now;
-            healthElement.textContent = Math.max(0, playerHealth);
-            playHitSound();
-            // Eliminar la gallina después del daño
+            hitEnemy = true;
+            playLifeLostSound(); // Sonido tutun al perder vida
             const index = chickens.indexOf(chicken);
             if (index > -1) chickens.splice(index, 1);
+            break;
         }
     }
     
-    // Colisión con gallos (quitan 5 de vida)
-    for (let rooster of roosters) {
-        const dx = player.x + player.width / 2 - rooster.x;
-        const dy = player.y + player.height / 2 - rooster.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < (player.width / 2 + rooster.width / 2) && now - lastDamageTime > damageCooldown) {
-            playerHealth -= 5;
-            lastDamageTime = now;
-            healthElement.textContent = Math.max(0, playerHealth);
-            playRoosterSound();
-            const index = roosters.indexOf(rooster);
-            if (index > -1) roosters.splice(index, 1);
+    // Colisión con gallos
+    if (!hitEnemy) {
+        for (let rooster of roosters) {
+            const dx = player.x + player.width / 2 - rooster.x;
+            const dy = player.y + player.height / 2 - rooster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < (player.width / 2 + rooster.width / 2) && now - lastDamageTime > damageCooldown) {
+                playerLives -= 1;
+                lastDamageTime = now;
+                hitEnemy = true;
+                playLifeLostSound(); // Sonido tutun al perder vida
+                const index = roosters.indexOf(rooster);
+                if (index > -1) roosters.splice(index, 1);
+                break;
+            }
         }
     }
     
-    // Colisión con gallos de fuego (quitan 10 de vida)
-    for (let fireRooster of fireRoosters) {
-        const dx = player.x + player.width / 2 - fireRooster.x;
-        const dy = player.y + player.height / 2 - fireRooster.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < (player.width / 2 + fireRooster.width / 2) && now - lastDamageTime > damageCooldown) {
-            playerHealth -= 10;
-            lastDamageTime = now;
-            healthElement.textContent = Math.max(0, playerHealth);
-            playFireRoosterSound();
-            const index = fireRoosters.indexOf(fireRooster);
-            if (index > -1) fireRoosters.splice(index, 1);
+    // Colisión con gallos de fuego
+    if (!hitEnemy) {
+        for (let fireRooster of fireRoosters) {
+            const dx = player.x + player.width / 2 - fireRooster.x;
+            const dy = player.y + player.height / 2 - fireRooster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < (player.width / 2 + fireRooster.width / 2) && now - lastDamageTime > damageCooldown) {
+                playerLives -= 1;
+                lastDamageTime = now;
+                hitEnemy = true;
+                playLifeLostSound(); // Sonido tutun al perder vida
+                const index = fireRoosters.indexOf(fireRooster);
+                if (index > -1) fireRoosters.splice(index, 1);
+                break;
+            }
         }
     }
     
-    // Colisión con comida (cura vida)
+    if (hitEnemy) {
+        updateHealthBar();
+        // Si todavía tiene vidas, reiniciar el nivel
+        if (playerLives > 0) {
+            resetLevelAfterLifeLost();
+        }
+    }
+    
+    // Colisión con comida (llena la barra de vida)
     for (let i = foods.length - 1; i >= 0; i--) {
         const food = foods[i];
         if (food.collected) continue;
@@ -796,8 +1135,15 @@ function checkCollisions() {
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < (player.width / 2 + food.size / 2)) {
-            playerHealth = Math.min(100, playerHealth + foodHealAmount);
-            healthElement.textContent = playerHealth;
+            playerHealthBar += foodHealAmount;
+            
+            // Si la barra llega a 100, gana una vida extra
+            if (playerHealthBar >= 100) {
+                playerLives += 1;
+                playerHealthBar = 0; // Resetear la barra
+            }
+            
+            updateHealthBar();
             playHealSound();
             foods.splice(i, 1);
             score += 5;
@@ -805,8 +1151,8 @@ function checkCollisions() {
         }
     }
     
-    // Verificar si el jugador murió
-    return playerHealth <= 0;
+    // Verificar si el jugador murió (sin vidas)
+    return playerLives <= 0;
 }
 
 // Bucle principal del juego
@@ -833,6 +1179,7 @@ function gameLoop() {
         updateRoosters();
         updateFireRoosters();
         updateClouds();
+        updateFoods();
         
         // Verificar colisiones
         if (checkCollisions()) {
@@ -853,52 +1200,113 @@ function gameLoop() {
         // Dibujar comida
         foods.forEach(drawFood);
         
-        // Dibujar gallinas, gallos y gallos de fuego
-        chickens.forEach(drawChicken);
-        roosters.forEach(drawRooster);
+        // Dibujar gallinas (solo las que no están ocultas por la nube)
+        chickens.forEach(chicken => {
+            if (!chicken.hidden) {
+                drawChicken(chicken);
+            }
+        });
+        
+        // Dibujar gallos (solo los que no están ocultos por la nube)
+        roosters.forEach(rooster => {
+            if (!rooster.hidden) {
+                drawRooster(rooster);
+            }
+        });
+        
+        // Dibujar gallos de fuego (siempre visibles, no se ocultan)
         fireRoosters.forEach(drawFireRooster);
         
-        // Dibujar nubes encima (ocultan parcialmente lo que está debajo)
+        // Dibujar nubes (solo cubren parte inferior)
         clouds.forEach(drawCloud);
         
-        // Dibujar personaje
+        // Dibujar personaje (siempre visible)
         drawPlayer();
         
-        // Aumentar dificultad gradualmente
-        gameSpeed += 0.0005;
+        // Verificar si sube de nivel
+        checkLevelUp();
         
-        requestAnimationFrame(gameLoop);
+        // Actualizar barra de vida
+        updateHealthBar();
+        
+        // La velocidad NO cambia durante el mismo nivel, solo cuando sube de nivel
+    } else if (gameState === 'lifelost') {
+        // Durante la cuenta regresiva, solo dibujar el fondo y el personaje
+        drawMountains();
+        drawFloor();
+        drawPlayer();
     }
+    
+    requestAnimationFrame(gameLoop);
 }
 
-// Iniciar juego
-startButton.addEventListener('click', async () => {
-    initAudio(); // Inicializar audio al empezar
-    // Asegurar que el audio esté activo antes de empezar la música
-    if (audioContext && audioContext.state === 'suspended') {
-        await audioContext.resume();
-    }
-    startBackgroundMusic(); // Iniciar música de fondo
-    gameState = 'playing';
+// Mostrar pantalla de personalización
+startButton.addEventListener('click', () => {
     startScreen.classList.add('hidden');
-    scoreDisplay.classList.remove('hidden');
-    if (isMobile) {
-        touchControls.classList.remove('hidden');
-    }
-    score = 0;
-    playerHealth = 100;
-    gameSpeed = 2;
-    player.x = canvas.width / 2;
-    chickens.length = 0;
-    roosters.length = 0;
-    fireRoosters.length = 0;
-    clouds.length = 0;
-    foods.length = 0;
-    lastDamageTime = 0;
-    scoreElement.textContent = score;
-    healthElement.textContent = playerHealth;
-    gameLoop();
+    characterScreen.classList.remove('hidden');
+    // Dibujar preview inicial
+    drawCharacterPreview();
 });
+
+// Actualizar preview cuando cambian las opciones
+if (colorSelect) {
+    colorSelect.addEventListener('change', drawCharacterPreview);
+}
+if (eyeColorSelect) {
+    eyeColorSelect.addEventListener('change', drawCharacterPreview);
+}
+if (mouthSelect) {
+    mouthSelect.addEventListener('change', drawCharacterPreview);
+}
+if (hatSelect) {
+    hatSelect.addEventListener('change', drawCharacterPreview);
+}
+
+// Iniciar juego con personaje personalizado
+if (playButton) {
+    playButton.addEventListener('click', async () => {
+        // Guardar características del personaje
+        if (colorSelect) player.color = colorSelect.value;
+        if (eyeColorSelect) player.eyeColor = eyeColorSelect.value;
+        if (mouthSelect) player.mouthType = mouthSelect.value;
+        if (hatSelect) player.hatType = hatSelect.value;
+        
+        initAudio(); // Inicializar audio al empezar
+        // Asegurar que el audio esté activo antes de empezar la música
+        if (audioContext && audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+        startBackgroundMusic(); // Iniciar música de fondo
+        gameState = 'playing';
+        characterScreen.classList.add('hidden');
+        scoreDisplay.classList.remove('hidden');
+        if (isMobile) {
+            touchControls.classList.remove('hidden');
+        }
+        score = 0;
+        playerHealth = 100;
+        playerLives = 5; // Resetear vidas a 5
+        playerHealthBar = 0; // Resetear barra de vida
+        gameSpeed = 0.3; // Velocidad inicial lenta
+        currentLevel = 1;
+        scoreForNextLevel = 100;
+        // Período de adaptación desactivado
+        chickenSpawnRate = 0.006; // Frecuencia balanceada
+        roosterSpawnRate = 0.0006; // 10% de la frecuencia de gallinas
+        fireRoosterSpawnRate = 0.0003; // 5% de la frecuencia de gallinas
+        player.x = canvas.width / 2;
+        chickens.length = 0;
+        roosters.length = 0;
+        fireRoosters.length = 0;
+        clouds.length = 0;
+        foods.length = 0;
+        lastDamageTime = 0;
+        scoreElement.textContent = score;
+        updateHealthBar();
+        if (levelElement) levelElement.textContent = currentLevel;
+        gameLoop();
+    });
+}
 
 // Reiniciar juego
 restartButton.addEventListener('click', async () => {
@@ -916,7 +1324,17 @@ restartButton.addEventListener('click', async () => {
     }
     score = 0;
     playerHealth = 100;
-    gameSpeed = 2;
+    playerLives = 5; // Resetear vidas a 5
+    playerHealthBar = 0; // Resetear barra de vida
+    gameSpeed = 0.2; // Velocidad inicial extremadamente reducida
+    currentLevel = 1;
+    scoreForNextLevel = 100;
+    chickenSpawnRate = 0.006; // Frecuencia balanceada
+    roosterSpawnRate = 0.0001; // Muy pocos gallos
+    fireRoosterSpawnRate = 0.00005; // Muy pocos gallos de fuego
+    // Iniciar período de adaptación al reiniciar
+    levelStartTime = Date.now();
+    adaptationTime = adaptationDuration;
     player.x = canvas.width / 2;
     chickens.length = 0;
     roosters.length = 0;
@@ -927,7 +1345,8 @@ restartButton.addEventListener('click', async () => {
     touchLeft = false;
     touchRight = false;
     scoreElement.textContent = score;
-    healthElement.textContent = playerHealth;
+    updateHealthBar();
+    if (levelElement) levelElement.textContent = currentLevel;
     gameLoop();
 });
 

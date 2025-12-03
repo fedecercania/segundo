@@ -21,8 +21,56 @@
     </audio>
     
     <div id="startScreen" class="screen">
+        <img src="Gallina.png" alt="Logo Gallina" class="game-logo">
         <h1>¡Esquiva las Gallinas Kamikaze!</h1>
         <button id="startButton">Comenzar</button>
+    </div>
+    
+    <div id="characterScreen" class="screen hidden">
+        <h1>Personaliza tu Personaje</h1>
+        <div class="character-preview">
+            <canvas id="characterPreview" width="120" height="120"></canvas>
+        </div>
+        <div class="character-options">
+            <div class="option-group">
+                <label>Color:</label>
+                <select id="colorSelect">
+                    <option value="#FF6B6B">Rojo</option>
+                    <option value="#4ECDC4">Azul</option>
+                    <option value="#95E1D3">Verde</option>
+                    <option value="#F38181">Rosa</option>
+                    <option value="#AA96DA">Morado</option>
+                    <option value="#FFD93D">Amarillo</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label>Color de Ojos:</label>
+                <select id="eyeColorSelect">
+                    <option value="#000000">Negro</option>
+                    <option value="#8B4513">Marrón</option>
+                    <option value="#0000FF">Azul</option>
+                    <option value="#008000">Verde</option>
+                    <option value="#FF69B4">Rosa</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label>Boca:</label>
+                <select id="mouthSelect">
+                    <option value="happy">Feliz</option>
+                    <option value="neutral">Neutra</option>
+                    <option value="surprised">Sorprendida</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label>Sombrero:</label>
+                <select id="hatSelect">
+                    <option value="none">Sin sombrero</option>
+                    <option value="cap">Gorra</option>
+                    <option value="tophat">Sombrero de copa</option>
+                </select>
+            </div>
+        </div>
+        <button id="playButton">¡Jugar!</button>
     </div>
     
     <div id="gameOverScreen" class="screen hidden">
@@ -31,9 +79,27 @@
         <button id="restartButton">Jugar de Nuevo</button>
     </div>
     
+    <div id="levelUpScreen" class="screen hidden">
+        <h1>¡Nivel <span id="levelUpNumber">2</span>!</h1>
+        <p>¡Bien hecho! La dificultad aumenta</p>
+    </div>
+    
+    <div id="lifeLostScreen" class="screen hidden">
+        <h1>¡Perdiste una vida!</h1>
+        <h2 id="countdownText">3</h2>
+        <p>Preparate para continuar...</p>
+    </div>
+    
     <div id="scoreDisplay" class="hidden">
         <div>Puntuación: <span id="score">0</span></div>
-        <div>Vida: <span id="health">100</span></div>
+        <div>Nivel: <span id="level">1</span></div>
+        <div>Vidas: <span id="lives">❤️❤️❤️❤️❤️</span></div>
+        <div class="health-container">
+            <div class="health-label">Barra de Vida</div>
+            <div class="health-bar">
+                <div id="healthBar" class="health-bar-fill"></div>
+            </div>
+        </div>
     </div>
     
     <!-- Controles táctiles para móvil -->
